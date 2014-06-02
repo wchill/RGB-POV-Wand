@@ -33,8 +33,8 @@
 #define LED7 8
 #define LED8 9
 
-#define MINDELAY 100
-#define MAXDELAY 1000
+#define MINDELAY 5
+#define MAXDELAY 50
 
 uint8_t led_cathodes[] = {RED, GREEN, BLUE};
 uint8_t led_anodes[] = {LED1, LED2, LED3, LED4, LED5, LED6, LED7, LED8};
@@ -82,23 +82,15 @@ void setup() {
   }
   
   // check the animation length
-  //ani_length = (eeprom_read_byte((uint8_t*)0) << 8) + eeprom_read_byte((uint8_t*)1);
-  ani_length = 100;
-  frame_buffer[0] = B11100000;
-  frame_buffer[1] = B00011100;
-  frame_buffer[2] = B00000011;
-  frame_buffer[3] = 0;
-  frame_buffer[4] = 0;
-  frame_buffer[5] = 0;
-  frame_buffer[6] = 0;
-  frame_buffer[7] = 0;
+  ani_length = (eeprom_read_byte((uint8_t*)0) << 8) + eeprom_read_byte((uint8_t*)1);
   
   speed = analogRead(A1);
   
   // start timer
   TCCR1A = 0;
-  TCCR1B = _BV(WGM12) | 0x05;
-  OCR1A = map(speed, 0, 1024, MINDELAY, MAXDELAY); // this should not be lower than 500
+  TCCR1B = _BV(WGM12) | 0x04;
+  //OCR1A = map(speed, 0, 1024, MINDELAY, MAXDELAY); // this should not be lower than 500
+  OCR1A = 5;
   TIMSK1 |= _BV(OCIE1A);   // Output Compare Interrupt Enable (timer 1, OCR1A)
 }
 
@@ -106,7 +98,8 @@ void setup() {
 void loop() {
   if ( abs(speed - analogRead(A1)) > 2) {
     speed = analogRead(A1); 
-    OCR1A = map(speed, 0, 1024, MINDELAY, MAXDELAY);
+    OCR1A = 5;
+    //OCR1A = map(speed, 0, 1024, MINDELAY, MAXDELAY);
   }
 }
 
@@ -214,16 +207,7 @@ ISR(TIMER1_COMPA_vect)
       if (ani_idx >= ani_length) {
         ani_idx = 0;
       }
-      byte b = frame_buffer[7];
-      frame_buffer[7] = frame_buffer[6];
-      frame_buffer[6] = frame_buffer[5];
-      frame_buffer[5] = frame_buffer[4];
-      frame_buffer[4] = frame_buffer[3];
-      frame_buffer[3] = frame_buffer[2];
-      frame_buffer[2] = frame_buffer[1];
-      frame_buffer[1] = frame_buffer[0];
-      frame_buffer[0] = b;
-      //eeprom_read_block((void*)frame_buffer, (const void*)(2 + (ani_idx * 8)), 8); // load next frame
+      eeprom_read_block((void*)frame_buffer, (const void*)(2 + (ani_idx * 8)), 8); // load next frame
     }
   }
 }

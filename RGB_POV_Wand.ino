@@ -17,6 +17,10 @@
 #include <avr/wdt.h>
 #include <util/delay.h>
 
+#define ATMEGA328
+
+#ifdef ATMEGA32U4
+
 #define RED_BIT 2
 #define GREEN_BIT 6
 #define BLUE_BIT 3
@@ -32,6 +36,26 @@
 #define LED6 7
 #define LED7 8
 #define LED8 9
+
+#elif defined(ATMEGA328)
+
+#define RED_BIT 0
+#define GREEN_BIT 1
+#define BLUE_BIT 2
+
+#define RED A0
+#define GREEN A1
+#define BLUE A2
+#define LED1 4
+#define LED2 5
+#define LED3 6
+#define LED4 7
+#define LED5 8
+#define LED6 9
+#define LED7 10
+#define LED8 11
+
+#endif
 
 #define MINDELAY 5
 #define MAXDELAY 50
@@ -145,6 +169,8 @@ ISR(TIMER1_COMPA_vect)
     }
   }
   
+  #ifdef ATMEGA32U4
+
   // Port mapping on the Arduino Pro Micro is complicated
   
   // (X denotes a pin that is either unused or does not map to
@@ -186,6 +212,23 @@ ISR(TIMER1_COMPA_vect)
   
   PORTB |= cathodeport;
   
+  #elif defined(ATMEGA328)
+
+  // PORTD: B11110000 (pin 7,6,5,4)
+  // PORTB: B00001111 (pin 11,10,9,8)
+  // PORTC: B00000111 (pin A2,A1,A0)
+  
+  PORTD &= B00001111;
+  PORTB &= B11110000;
+  PORTC &= B11111000;
+  
+  PORTD |= (ledport & B00001111) << 4;
+  PORTB |= (ledport & B11110000) >> 4;
+  PORTC |= cathodeport;
+  
+
+  #endif
+
   /*
   LED_3_1_PORTx &= ~(0x07);
   LED_8_4_PORTx &= ~(0xF8);

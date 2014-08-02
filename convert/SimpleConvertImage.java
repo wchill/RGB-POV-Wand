@@ -7,7 +7,8 @@ import javax.imageio.ImageIO;
  
 public class SimpleConvertImage {
         public static void main(String[] args) throws IOException{
-                BufferedImage img=ImageIO.read(new File(args[1]));
+                if(args.length < 1) throw new IOException("No file provided");
+                BufferedImage img=ImageIO.read(new File(args[0]));
                 if(img.getWidth() == 0 || img.getWidth() > 127 || img.getHeight() != 8) {
                         System.err.println("Image size must be between 1 and 127 pixels wide inclusive and 8 pixels tall");
                 } else {
@@ -27,12 +28,12 @@ public class SimpleConvertImage {
                                         data[8 * i + j + 2] = c;
                                 }
                         }
-                        System.out.println("PROGMEM prog_uchar image[] = {" + data[0] + "," + data[1] + ",");
+                        System.out.println("PROGMEM prog_uchar image[] = {" + (int) data[0] + "," + (int) data[1] + ",");
                         for(int i = 2; i < img.getWidth() - 1; i++) {
-                                System.out.print(data[2]);
+                                System.out.print((int) data[i]);
                                 System.out.print(",");
                         }
-                        System.out.print(data[data.length - 1]);
+                        System.out.print((int) data[data.length - 1]);
                         System.out.println("\n};");
                 }
         }

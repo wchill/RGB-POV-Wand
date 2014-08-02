@@ -106,7 +106,8 @@ void setup() {
   }
   
   // check the animation length
-  ani_length = (eeprom_read_byte((uint8_t*)0) << 8) + eeprom_read_byte((uint8_t*)1);
+  ani_length = (image[0] << 8) + image[1];
+  //ani_length = (eeprom_read_byte((uint8_t*)0) << 8) + eeprom_read_byte((uint8_t*)1);
   
   speed = analogRead(A1);
   
@@ -250,7 +251,8 @@ ISR(TIMER1_COMPA_vect)
       if (ani_idx >= ani_length) {
         ani_idx = 0;
       }
-      eeprom_read_block((void*)frame_buffer, (const void*)(2 + (ani_idx * 8)), 8); // load next frame
+      memcpy_PF((void*) frame_buffer, (const void*) (2 + (ani_idx * 8)), 8);
+      //eeprom_read_block((void*)frame_buffer, (const void*)(2 + (ani_idx * 8)), 8); // load next frame
     }
   }
 }

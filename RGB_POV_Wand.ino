@@ -9,7 +9,6 @@
   Licensed under GPL v2
 */
 
-
 #include <avr/io.h>
 #include <avr/eeprom.h>
 #include <avr/pgmspace.h>
@@ -17,8 +16,43 @@
 #include <avr/wdt.h>
 #include <util/delay.h>
 
-#define ATMEGA328
+// select chip type (uncomment the corresponding #define)
+// ATMEGA328: Arduino Uno/Pro/Pro Mini/other 328-based boards
+// ATMEGA32U4: Arduino Micro/Pro Micro/other 32u4-based boards
 
+#define ATMEGA328
+// #define ATMEGA32U4
+
+// By default, images are stored in flash memory (hence PROGMEM). They can be stored in EEPROM
+// but you will need to use avrdude to program the image data onto the chip.
+// To use EEPROM, comment the line below
+
+#define USE_FLASH
+
+
+#ifdef USE_FLASH
+
+// Replace with your own image data either manually or with the provided converters
+// Image can be up to 65536x8 pixels big, but for best results the image size should be 128x8 or less
+// (The included image converters require that the image size be 127x8 or less)
+// image[0] and image[1] contain the width of the image (big endian)
+// Every subsequent byte represents one pixel, going from top to bottom then left to right in RRRGGGBB format.
+// This has no effect if EEPROM is being used - you must use avrdude to program an image. The format is the same
+// but you are limited to an image 127x8 pixels or less (just under 1024 bytes).
+
+PROGMEM prog_uchar image[] = {0,1,255,255,255,255,255,255,255,255};
+
+#endif
+
+// Set frame delay. This is used in conjunction with the divisor to set how often the chip should update LED state.
+// Default setting is 5, but you may find other settings more suitable.
+#define DELAY 5
+
+// Set power on self test (POST) delay.
+// Default setting is 30
+#define POST_DELAY 30
+
+// chip-specific defines, do not modify
 #ifdef ATMEGA32U4
 
 #define RED_BIT 2
@@ -57,9 +91,7 @@
 
 #endif
 
-#define MINDELAY 5
-#define MAXDELAY 50
-
+// convenience/temporary variables
 uint8_t led_cathodes[] = {RED, GREEN, BLUE};
 uint8_t led_anodes[] = {LED1, LED2, LED3, LED4, LED5, LED6, LED7, LED8};
 
@@ -69,109 +101,55 @@ volatile uint8_t colour_idx = 0; // 0 = R, 1 = G, 2 = B, repeating
 volatile uint8_t shade_idx = 0;
 volatile byte frame_buffer[8];
 
-PROGMEM prog_uchar image[] = {0,127,
-//uint8_t image[] = {0, 127,
-96,128,192,228,233,237,242,242,64,128,192,229,232,238,241,246,64,128,164,228,233,237,242,246,64,132,160,228,232,241,241,246,
-96,128,164,228,233,237,242,246,32,36,96,132,100,136,105,109,255,255,255,255,255,255,255,255,142,255,255,255,255,255,255,255,
-68,145,255,255,214,105,109,109,64,100,145,255,255,214,173,246,68,100,104,178,255,255,218,177,68,72,145,255,255,218,141,249,
-68,145,255,255,214,136,109,109,141,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,36,68,68,104,104,140,108,113,
-255,255,72,255,255,255,255,255,255,255,68,255,255,255,255,255,36,36,76,72,108,108,141,141,72,108,68,255,255,255,255,255,
-104,108,72,255,255,255,255,255,72,108,40,255,72,108,108,145,104,108,72,255,145,108,144,109,72,108,72,219,255,255,255,255,
-76,108,108,76,218,255,255,255,36,40,72,76,104,112,108,145,255,255,72,255,255,255,255,255,255,255,68,255,255,255,255,255,
-36,36,40,72,76,108,81,109,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,40,40,76,255,80,77,113,
-255,77,40,109,255,76,189,222,182,255,255,255,186,84,158,222,8,145,255,149,48,88,189,190,8,40,8,44,44,81,81,186,
-8,186,255,255,255,255,218,114,182,255,255,255,255,255,255,222,255,76,40,12,44,45,117,255,255,77,8,44,12,49,113,255,
-187,255,255,255,255,255,255,218,4,187,255,255,255,255,187,118,4,4,8,12,16,44,85,153,255,255,114,12,20,93,125,190,
-255,255,255,255,150,45,117,158,4,8,145,255,255,255,150,113,8,12,12,12,150,255,255,255,4,8,113,255,255,255,150,81,
-255,255,255,255,150,45,117,158,255,255,146,13,16,93,126,191,4,5,9,12,13,45,117,190,4,255,255,255,255,255,45,190,
-5,255,255,255,255,255,49,159,4,8,8,13,12,255,77,191,4,5,9,12,13,255,81,110,255,255,255,255,255,255,255,255,
-255,255,255,255,255,255,255,255,4,8,8,13,13,255,46,114,9,13,18,22,21,45,86,190,9,13,17,22,26,63,126,191,
-13,13,18,22,27,63,127,159,9,13,17,26,26,63,127,191,9,13,18,22,27,63,127,191,9,13,9,13,13,50,45,82,
-9,100,164,224,224,224,224,224,96,224,255,255,255,224,224,114,160,224,255,0,255,224,224,224,192,224,224,224,224,224,224,82,
-160,224,255,255,255,224,224,224,64,224,255,0,255,224,224,114,5,68,164,224,224,224,224,224,5,9,9,10,9,78,46,110,
-9,9,14,19,55,119,155,155,5,10,14,19,51,119,151,187,5,6,10,10,42,78,119,187,5,77,144,220,216,152,109,151,
-73,184,252,252,252,252,216,113,144,252,252,252,252,252,252,185,216,252,252,252,252,252,252,248,216,252,252,10,37,252,252,220,
-176,252,6,38,74,73,252,181,68,5,6,38,37,78,73,145,1,2,5,255,255,41,151,147,1,7,1,255,255,74,147,183,
-1,3,6,6,70,106,147,151,1,3,35,75,107,147,147,183,1,3,6,37,69,74,147,151,1,35,2,255,255,74,147,183,
-1,3,33,255,255,42,179,179,1,34,34,38,38,110,147,183,33,34,71,103,139,143,179,183,1,66,34,38,37,110,147,183,
-33,34,34,255,255,73,179,211,1,66,33,255,255,74,179,215,33,66,66,37,70,106,179,215,33,66,99,135,139,179,179,215,
-33,66,131,135,171,175,211,211,33,98,99,167,167,207,211,215,65,66,131,130,101,101,106,174,33,98,97,70,28,28,28,109,
-33,65,65,28,28,102,106,174,28,65,28,28,28,28,28,142,33,28,28,98,28,28,137,28,33,65,28,28,28,28,105,28,
-65,64,28,28,28,28,137,106,32,65,28,28,28,28,105,28,33,28,28,97,28,28,138,28,28,65,28,28,28,28,28,109,
-33,65,97,28,28,133,137,174,65,129,98,130,28,28,28,142,65,97,162,162,101,133,137,174,65,129,161,231,230,239,242,247,
-96,97,162,226,234,238,243,243,64,129,129,133,97,170,170,142,65,65,97,124,124,101,137,124,32,65,124,156,124,137,124,110,
-33,124,156,97,156,124,137,124,124,156,124,156,124,137,124,141,124,124,156,124,124,101,156,137,32,156,124,101,124,156,105,156,
-64,64,156,124,156,133,156,137,64,96,96,156,124,137,105,156,64,128,129,128,101,169,174,137,64,129,192,229,233,238,242,246,
-96,128,192,228,233,237,242,242,64,128,192,229,229,238,242,246,64,128,192,228,233,246
-};
-
-
-int speed = 0;
-
-void setup() {               
+void setup() {           
   
-  // 10k trimpot
-  pinMode(A0, OUTPUT);
-  pinMode(A2, OUTPUT);
-  pinMode(A1, INPUT);
-  digitalWrite(A0, HIGH);
-  digitalWrite(A2, LOW);
+  // set up LED pins
   
-  for(int i = 0; i < 8; ++i) {
+  for(uint8_t i = 0; i < 8; ++i) {
     pinMode(led_anodes[i], OUTPUT);
     digitalWrite(led_anodes[i], LOW);
   }
   
-  for(int i = 0; i < 3; ++i) {
+  for(uint8_t i = 0; i < 3; ++i) {
     pinMode(led_cathodes[i], OUTPUT);
     digitalWrite(led_cathodes[i], LOW);
   }
   
-  for (uint8_t c=0; c<3; c++) {
+  // LED power on self test
+  
+  for (uint8_t c = 0; c < 3; ++c) {
     // turn on one color at a time
     digitalWrite(led_cathodes[c], HIGH);
-    for (uint8_t a=0; a<8; a++) {
+    
+    for (uint8_t a = 0; a < 8; ++a) {
       // turn on one LED at a time
       digitalWrite(led_anodes[a], HIGH);
-      delay(30);
+      delay(POST_DELAY);
     }
+    
     // turn it off
     digitalWrite(led_cathodes[c], LOW);
-    for (uint8_t a=0; a<8; a++) {
+    for (uint8_t a = 0; a < 8; a++) {
       digitalWrite(led_anodes[a], LOW);
     }
   }
   
   // check the animation length
-  ani_length = (image[0] << 8) + image[1];
-  /*
-  for(int i = 2; i < ani_length + 2; ++i) {
-    memcpy_P((void*) frame_buffer, (const void*) (&image + 2 + (i * 8)), 8);
-    eeprom_write_block((void*)frame_buffer, (void*) (i * 8 + 2), 8);
-  }
-  */
-  //ani_length = (eeprom_read_byte((uint8_t*)0) << 8) + eeprom_read_byte((uint8_t*)1);
-  
-  speed = analogRead(A1);
+  #ifdef USE_FLASH
+  ani_length = pgm_read_word_near(&image);
+  #else
+  ani_length = (eeprom_read_byte((uint8_t*)0) << 8) + eeprom_read_byte((uint8_t*)1);
+  #endif
   
   // start timer
   TCCR1A = 0;
   TCCR1B = _BV(WGM12) | 0x04;
-  //OCR1A = map(speed, 0, 1024, MINDELAY, MAXDELAY); // this should not be lower than 500
   OCR1A = 5;
   TIMSK1 |= _BV(OCIE1A);   // Output Compare Interrupt Enable (timer 1, OCR1A)
 }
 
-// the loop routine runs over and over again forever:
-void loop() {
-  /*
-  if ( abs(speed - analogRead(A1)) > 2) {
-    speed = analogRead(A1); 
-    OCR1A = 5;
-    //OCR1A = map(speed, 0, 1024, MINDELAY, MAXDELAY);
-  }  
-  */
-}
+// does nothing, everything is handled by interrupts
+void loop() {}
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -296,9 +274,12 @@ ISR(TIMER1_COMPA_vect)
       if (ani_idx >= ani_length) {
         ani_idx = 0;
       }
-      //memcpy((void*) frame_buffer, (const void*) (&image + 2 + (ani_idx * 8)), 8);
+      // load next frame
+      #ifdef USE_FLASH
       memcpy_P((void*) frame_buffer, (const void*) (&image + 2 + (ani_idx * 8)), 8);
-      //eeprom_read_block((void*)frame_buffer, (const void*)(2 + (ani_idx * 8)), 8); // load next frame
+      #else
+      eeprom_read_block((void*)frame_buffer, (const void*)(2 + (ani_idx * 8)), 8);
+      #endif
     }
   }
 }
